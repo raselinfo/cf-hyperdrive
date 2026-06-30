@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    command: bash -c "test -f /var/lib/postgresql/data/pgdata/server.key || (openssl req -new -x509 -days 3650 -nodes -text -out /var/lib/postgresql/data/pgdata/server.crt -keyout /var/lib/postgresql/data/pgdata/server.key -subj '/CN=dokploy-postgres' && chmod 600 /var/lib/postgresql/data/pgdata/server.key); exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/data/pgdata/server.crt -c ssl_key_file=/var/lib/postgresql/data/pgdata/server.key"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      # Maps the custom DB_PORT to internal 5432. Defaults to 5432 if not set.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
